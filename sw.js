@@ -2,13 +2,14 @@
 
 importScripts("quotes.js");
 
-const CACHE = "whyapp-v2";
+const CACHE = "whyapp-v3";
 const ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
   "./quotes.js",
+  "./workouts.js",
   "./manifest.json",
   "./icons/icon-192.png",
   "./icons/icon-512.png"
@@ -98,6 +99,22 @@ async function fireDueReminders() {
         : QUOTES[Math.floor(Math.random() * QUOTES.length)].t;
       await self.registration.showNotification("Remember your why 🔥", {
         body,
+        icon: "icons/icon-192.png",
+        badge: "icons/icon-192.png",
+        vibrate: [200, 100, 200]
+      });
+    }
+  }
+  // workout reminder for today's scheduled training
+  const w = state.workout;
+  if (w && w.time && w.byDay) {
+    const wd = (now.getDay() + 6) % 7;
+    const name = w.byDay[wd];
+    if (name && w.time <= nowHM && state.lastFired["workout"] !== today) {
+      state.lastFired["workout"] = today;
+      fired = true;
+      await self.registration.showNotification("Workout day 💪", {
+        body: `Today: ${name}. You know why you're doing this.`,
         icon: "icons/icon-192.png",
         badge: "icons/icon-192.png",
         vibrate: [200, 100, 200]

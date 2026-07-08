@@ -10,7 +10,13 @@ const defaultData = () => ({
   urges: [],         // {id, ts, trigger, outcome: 'resisted'|'gavein'}
   checkins: {},      // 'YYYY-MM-DD' -> true|false
   settings: { name: "", reminders: ["08:00", "21:00"] },
-  lastFired: {}      // 'HH:MM' -> 'YYYY-MM-DD'
+  lastFired: {},     // 'HH:MM' (or 'workout') -> 'YYYY-MM-DD'
+  sport: {
+    schedule: [null, null, null, null, null, null, null], // Mon..Sun -> preset id
+    reminderTime: "18:00",
+    workouts: [],    // {id, date, presetId, ts, entries:[{name, detail}]}
+    body: []         // {id, date, ts, weight, height, muscle, fat, bmi}
+  }
 });
 
 let data = load();
@@ -30,7 +36,14 @@ function save() {
   idbSet("reminders", {
     times: data.settings.reminders,
     lastFired: data.lastFired,
-    whys: data.whys.map((w) => w.text)
+    whys: data.whys.map((w) => w.text),
+    workout: {
+      time: data.sport.reminderTime,
+      byDay: data.sport.schedule.map((pid) => {
+        const p = pid && WORKOUT_PRESETS.find((x) => x.id === pid);
+        return p ? p.name : null;
+      })
+    }
   });
 }
 
@@ -74,7 +87,7 @@ function pickMotivation() {
 
 // ---------- view switching ----------
 
-const views = ["home", "whys", "progress", "settings"];
+const views = ["home", "whys", "sport", "progress", "settings"];
 
 function showView(name) {
   views.forEach((v) => ($("view-" + v).hidden = v !== name));
@@ -88,6 +101,7 @@ function showView(name) {
   el.classList.add("anim-in");
   if (name === "home") renderHome();
   if (name === "whys") renderWhys();
+  if (name === "sport") renderSport();
   if (name === "progress") renderProgress();
   if (name === "settings") renderSettings();
 }
@@ -514,6 +528,338 @@ function renderUrgeLog() {
   }
 }
 
+// ---------- sport ----------
+
+const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const todayWd = () => (new Date().getDay() + 6) % 7; // Monday = 0
+const presetById = (id) => WORKOUT_PRESETS.find((p) => p.id === id);
+
+let sportMonth = new Date();
+let workoutPresetId = null;
+
+function renderSport() {
+  renderTodayWorkout();
+  renderSchedule();
+  renderPresetList();
+  renderSportHeatmap();
+  renderBody();
+}
+
+function renderTodayWorkout() {
+  const pid = data.sport.schedule[todayWd()];
+  const p = pid ? presetById(pid) : null;
+  const doneToday = data.sport.workouts.some((w) => w.date === dateKey());
+  $("today-workout-name").textContent = p
+    ? `${p.emoji} ${p.name}`
+    : "Rest day — recovery is training too.";
+  $("btn-log-today").hidden = !p;
+  $("today-workout-status").textContent = doneToday
+    ? "✓ Logged today. Beast."
+    : p ? "Not logged yet." : "";
+}
+
+$("btn-log-today").addEventListener("click", () => {
+  const pid = data.sport.schedule[todayWd()];
+  if (pid) openWorkoutModal(pid);
+});
+
+function renderSchedule() {
+  const list = $("schedule-list");
+  list.innerHTML = "";
+  DAY_NAMES.forEach((day, i) => {
+    const row = document.createElement("div");
+    row.className = "sched-row" + (i === todayWd() ? " sched-today" : "");
+    const label = document.createElement("span");
+    label.className = "sched-day";
+    label.textContent = day;
+    const sel = document.createElement("select");
+    sel.className = "select";
+    const rest = document.createElement("option");
+    rest.value = "";
+    rest.textContent = "Rest";
+    sel.appendChild(rest);
+    for (const p of WORKOUT_PRESETS) {
+      const o = document.createElement("option");
+      o.value = p.id;
+      o.textContent = `${p.emoji} ${p.name}`;
+      sel.appendChild(o);
+    }
+    sel.value = data.sport.schedule[i] || "";
+    sel.addEventListener("change", () => {
+      data.sport.schedule[i] = sel.value || null;
+      save();
+      renderTodayWorkout();
+      scheduleForegroundReminders();
+    });
+    row.append(label, sel);
+    list.appendChild(row);
+  });
+  $("input-workout-time").value = data.sport.reminderTime;
+}
+
+$("input-workout-time").addEventListener("change", () => {
+  data.sport.reminderTime = $("input-workout-time").value || "18:00";
+  save();
+  scheduleForegroundReminders();
+});
+
+function renderPresetList() {
+  const list = $("preset-list");
+  list.innerHTML = "";
+  for (const p of WORKOUT_PRESETS) {
+    const btn = document.createElement("button");
+    btn.className = "preset-item";
+    const em = document.createElement("span");
+    em.className = "preset-emoji";
+    em.textContent = p.emoji;
+    const mid = document.createElement("span");
+    mid.className = "preset-mid";
+    const nm = document.createElement("span");
+    nm.className = "preset-name";
+    nm.textContent = p.name;
+    const meta = document.createElement("span");
+    meta.className = "preset-meta";
+    const count = data.sport.workouts.filter((w) => w.presetId === p.id).length;
+    meta.textContent = `${p.exercises.length} exercises` + (count ? ` · done ${count}×` : "");
+    mid.append(nm, meta);
+    const chev = document.createElement("span");
+    chev.className = "preset-chev";
+    chev.textContent = "›";
+    btn.append(em, mid, chev);
+    btn.addEventListener("click", () => openWorkoutModal(p.id));
+    list.appendChild(btn);
+  }
+}
+
+// --- workout logging ---
+
+function openWorkoutModal(pid) {
+  const p = presetById(pid);
+  if (!p) return;
+  workoutPresetId = pid;
+  $("workout-modal-title").textContent = `${p.emoji} ${p.name}`;
+  $("workout-modal-desc").textContent = p.desc;
+  const wrap = $("workout-exercises");
+  wrap.innerHTML = "";
+  p.exercises.forEach((ex) => {
+    const div = document.createElement("div");
+    div.className = "exercise";
+    const head = document.createElement("div");
+    head.className = "ex-head";
+    const nm = document.createElement("span");
+    nm.className = "ex-name";
+    nm.textContent = ex.name;
+    const tg = document.createElement("span");
+    tg.className = "ex-target";
+    tg.textContent = ex.target;
+    head.append(nm, tg);
+    const how = document.createElement("p");
+    how.className = "ex-how";
+    how.textContent = ex.how;
+    const inputs = document.createElement("div");
+    inputs.className = "ex-inputs";
+    const fields = ex.type === "time"
+      ? [["sets", "sets"], ["seconds", "sec"]]
+      : [["sets", "sets"], ["reps", "reps"], ["kg", "kg"]];
+    for (const [field, ph] of fields) {
+      const inp = document.createElement("input");
+      inp.type = "number";
+      inp.className = "text-input mini-input";
+      inp.placeholder = ph;
+      inp.min = "0";
+      inp.step = field === "kg" ? "0.5" : "1";
+      inp.inputMode = "decimal";
+      inp.dataset.field = field;
+      inputs.appendChild(inp);
+    }
+    div.append(head, how, inputs);
+    wrap.appendChild(div);
+  });
+  $("workout-modal").hidden = false;
+}
+
+$("btn-workout-cancel").addEventListener("click", () => ($("workout-modal").hidden = true));
+$("workout-modal").addEventListener("click", (e) => {
+  if (e.target === $("workout-modal")) $("workout-modal").hidden = true;
+});
+
+$("btn-workout-save").addEventListener("click", () => {
+  const p = presetById(workoutPresetId);
+  const entries = [];
+  document.querySelectorAll("#workout-exercises .exercise").forEach((div, i) => {
+    const ex = p.exercises[i];
+    const vals = {};
+    let any = false;
+    div.querySelectorAll("input").forEach((inp) => {
+      vals[inp.dataset.field] = inp.value.trim();
+      if (inp.value.trim()) any = true;
+    });
+    if (!any) return;
+    const detail = ex.type === "time"
+      ? `${vals.sets || "?"}×${vals.seconds || "?"}s`
+      : `${vals.sets || "?"}×${vals.reps || "?"}` + (vals.kg ? ` @ ${vals.kg}kg` : "");
+    entries.push({ name: ex.name, detail });
+  });
+  data.sport.workouts.unshift({
+    id: uid(), date: dateKey(), presetId: workoutPresetId, ts: Date.now(), entries
+  });
+  save();
+  $("workout-modal").hidden = true;
+  renderSport();
+  toast("Workout logged 💪");
+});
+
+// --- training-days calendar ---
+
+function renderSportHeatmap() {
+  const y = sportMonth.getFullYear();
+  const m = sportMonth.getMonth();
+  $("sport-hm-title").textContent = sportMonth.toLocaleDateString("en-GB", {
+    month: "long", year: "numeric"
+  });
+
+  const trained = new Set(
+    data.sport.workouts
+      .filter((w) => w.date.startsWith(`${y}-${String(m + 1).padStart(2, "0")}`))
+      .map((w) => w.date)
+  );
+
+  const hm = $("sport-heatmap");
+  hm.innerHTML = "";
+  DAY_NAMES.forEach((d) => {
+    const el = document.createElement("div");
+    el.className = "hm-dow";
+    el.textContent = d.slice(0, 2);
+    hm.appendChild(el);
+  });
+  const first = new Date(y, m, 1);
+  const lead = (first.getDay() + 6) % 7;
+  for (let i = 0; i < lead; i++) {
+    const el = document.createElement("div");
+    el.className = "hm-cell hm-empty";
+    hm.appendChild(el);
+  }
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  const todayK = dateKey();
+  for (let d = 1; d <= daysInMonth; d++) {
+    const k = dateKey(new Date(y, m, d));
+    const el = document.createElement("div");
+    el.className = "hm-cell hm-pop";
+    el.style.animationDelay = d * 12 + "ms";
+    if (trained.has(k)) {
+      el.classList.add("hm-sport");
+      el.textContent = "✓";
+      el.title = `${k}: trained`;
+    } else {
+      el.textContent = d;
+      el.title = `${k}: no workout`;
+    }
+    if (k === todayK) el.classList.add("hm-today");
+    hm.appendChild(el);
+  }
+  const n = trained.size;
+  $("sport-month-count").textContent =
+    n === 0 ? "No workouts this month yet." : `${n} workout day${n > 1 ? "s" : ""} this month. Keep going.`;
+}
+
+$("btn-sport-prev").addEventListener("click", () => {
+  sportMonth = new Date(sportMonth.getFullYear(), sportMonth.getMonth() - 1, 1);
+  renderSportHeatmap();
+});
+$("btn-sport-next").addEventListener("click", () => {
+  sportMonth = new Date(sportMonth.getFullYear(), sportMonth.getMonth() + 1, 1);
+  renderSportHeatmap();
+});
+
+// --- body stats & BMI ---
+
+function bmiCategory(bmi) {
+  if (bmi < 18.5) return "underweight";
+  if (bmi < 25) return "healthy";
+  if (bmi < 30) return "overweight";
+  return "obese";
+}
+
+function renderBody() {
+  const b = data.sport.body[0];
+  $("body-weight").textContent = b && b.weight ? b.weight.toFixed(1) : "–";
+  $("body-bmi").textContent = b && b.bmi ? b.bmi.toFixed(1) : "–";
+  $("body-bmi-label").textContent = b && b.bmi ? `BMI · ${bmiCategory(b.bmi)}` : "BMI";
+  $("body-muscle").textContent = b && b.muscle != null ? b.muscle.toFixed(1) : "–";
+  $("body-fat").textContent = b && b.fat != null ? b.fat.toFixed(1) : "–";
+
+  const hist = $("body-history");
+  hist.innerHTML = "";
+  for (const e of data.sport.body.slice(0, 8)) {
+    const row = document.createElement("div");
+    row.className = "urge-row";
+    const left = document.createElement("div");
+    const line = document.createElement("div");
+    const parts = [`${e.weight.toFixed(1)} kg`, `BMI ${e.bmi.toFixed(1)}`];
+    if (e.muscle != null) parts.push(`${e.muscle}% muscle`);
+    if (e.fat != null) parts.push(`${e.fat}% fat`);
+    line.textContent = parts.join(" · ");
+    const when = document.createElement("div");
+    when.className = "urge-when";
+    when.textContent = new Date(e.ts).toLocaleDateString("en-GB", {
+      day: "numeric", month: "short", year: "numeric"
+    });
+    left.append(line, when);
+    row.appendChild(left);
+    hist.appendChild(row);
+  }
+}
+
+function updateBmiPreview() {
+  const w = parseFloat($("input-weight").value);
+  const h = parseFloat($("input-height").value);
+  if (w > 0 && h > 0) {
+    const bmi = w / Math.pow(h / 100, 2);
+    $("bmi-preview").textContent = `BMI: ${bmi.toFixed(1)} (${bmiCategory(bmi)})`;
+  } else {
+    $("bmi-preview").textContent = "Fill in weight + height and your BMI is calculated automatically.";
+  }
+}
+$("input-weight").addEventListener("input", updateBmiPreview);
+$("input-height").addEventListener("input", updateBmiPreview);
+
+$("btn-add-body").addEventListener("click", () => {
+  const last = data.sport.body[0];
+  $("input-weight").value = "";
+  $("input-height").value = last ? last.height : "";
+  $("input-muscle").value = "";
+  $("input-fat").value = "";
+  updateBmiPreview();
+  $("body-modal").hidden = false;
+  $("input-weight").focus();
+});
+$("btn-body-cancel").addEventListener("click", () => ($("body-modal").hidden = true));
+$("body-modal").addEventListener("click", (e) => {
+  if (e.target === $("body-modal")) $("body-modal").hidden = true;
+});
+
+$("btn-body-save").addEventListener("click", () => {
+  const w = parseFloat($("input-weight").value);
+  const h = parseFloat($("input-height").value);
+  if (!(w > 0) || !(h > 0)) { toast("Weight and height are required"); return; }
+  const muscle = parseFloat($("input-muscle").value);
+  const fat = parseFloat($("input-fat").value);
+  data.sport.body.unshift({
+    id: uid(),
+    date: dateKey(),
+    ts: Date.now(),
+    weight: w,
+    height: h,
+    muscle: isNaN(muscle) ? null : muscle,
+    fat: isNaN(fat) ? null : fat,
+    bmi: w / Math.pow(h / 100, 2)
+  });
+  save();
+  $("body-modal").hidden = true;
+  renderBody();
+  toast("Measurement saved 📏");
+});
+
 // ---------- settings ----------
 
 function renderSettings() {
@@ -638,6 +984,15 @@ function checkDueReminders() {
       showNotification("Remember your why 🔥", reminderBody());
     }
   }
+  // workout reminder for today's scheduled training
+  const pid = data.sport.schedule[todayWd()];
+  const wt = data.sport.reminderTime;
+  if (pid && wt && wt <= nowHM && data.lastFired["workout"] !== today) {
+    data.lastFired["workout"] = today;
+    fired = true;
+    const p = presetById(pid);
+    showNotification("Workout day 💪", `Today: ${p ? p.name : "training"}. You know why you're doing this.`);
+  }
   if (fired) save();
 }
 
@@ -646,9 +1001,12 @@ function scheduleForegroundReminders() {
   clearTimeout(reminderTimeout);
   const now = new Date();
   const today = dateKey();
+  const cands = data.settings.reminders.filter((t) => data.lastFired[t] !== today);
+  if (data.sport.schedule[todayWd()] && data.sport.reminderTime && data.lastFired["workout"] !== today) {
+    cands.push(data.sport.reminderTime);
+  }
   let nextMs = Infinity;
-  for (const t of data.settings.reminders) {
-    if (data.lastFired[t] === today) continue;
+  for (const t of cands) {
     const [h, m] = t.split(":").map(Number);
     const when = new Date(now); when.setHours(h, m, 0, 0);
     const diff = when - now;
