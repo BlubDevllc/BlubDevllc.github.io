@@ -2,7 +2,7 @@
 
 importScripts("quotes.js");
 
-const CACHE = "whyapp-v1";
+const CACHE = "whyapp-v2";
 const ASSETS = [
   "./",
   "./index.html",

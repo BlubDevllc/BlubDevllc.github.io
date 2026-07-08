@@ -81,6 +81,11 @@ function showView(name) {
   document.querySelectorAll(".tab[data-view]").forEach((t) =>
     t.classList.toggle("active", t.dataset.view === name)
   );
+  // retrigger the staggered entrance animation
+  const el = $("view-" + name);
+  el.classList.remove("anim-in");
+  void el.offsetWidth;
+  el.classList.add("anim-in");
   if (name === "home") renderHome();
   if (name === "whys") renderWhys();
   if (name === "progress") renderProgress();
@@ -126,7 +131,11 @@ function renderHome() {
     weekday: "long", day: "numeric", month: "long"
   });
 
-  $("streak-num").textContent = currentStreak();
+  const streak = currentStreak();
+  animateCount($("streak-num"), streak);
+  const flame = $("streak-flame");
+  flame.classList.toggle("dim", streak === 0);
+  flame.classList.toggle("hot", streak >= 7);
 
   rotateWhyCard();
 
@@ -140,10 +149,27 @@ function renderHome() {
   }
 }
 
+function animateCount(el, target) {
+  const from = parseInt(el.textContent, 10) || 0;
+  if (from === target) { el.textContent = target; return; }
+  const dur = 700, start = performance.now();
+  (function tick(t) {
+    const p = Math.min((t - start) / dur, 1);
+    const eased = 1 - Math.pow(1 - p, 3);
+    el.textContent = Math.round(from + (target - from) * eased);
+    if (p < 1) requestAnimationFrame(tick);
+  })(start);
+}
+
 function rotateWhyCard() {
-  const m = pickMotivation();
-  $("why-card-text").textContent = m.text;
-  $("why-card-source").textContent = "— " + m.source;
+  const card = $("why-card");
+  card.classList.add("swapping");
+  setTimeout(() => {
+    const m = pickMotivation();
+    $("why-card-text").textContent = m.text;
+    $("why-card-source").textContent = "— " + m.source;
+    card.classList.remove("swapping");
+  }, 190);
 }
 
 $("btn-next-why").addEventListener("click", rotateWhyCard);
@@ -170,13 +196,22 @@ $("btn-checkin-undo").addEventListener("click", () => {
 let editingWhyId = null;
 let selectedCat = null;
 
+const CAT_CLASS = {
+  "why I live": "cat-live",
+  "why I try": "cat-try",
+  "goal": "cat-goal",
+  "aspiration": "cat-asp"
+};
+
 function renderWhys() {
   const list = $("whys-list");
   list.innerHTML = "";
   $("whys-empty").hidden = data.whys.length > 0;
-  for (const w of data.whys) {
+  data.whys.forEach((w, i) => {
     const btn = document.createElement("button");
-    btn.className = "why-item";
+    btn.className = "why-item why-enter";
+    if (CAT_CLASS[w.cat]) btn.classList.add(CAT_CLASS[w.cat]);
+    btn.style.animationDelay = Math.min(i * 60, 400) + "ms";
     if (w.cat) {
       const cat = document.createElement("span");
       cat.className = "why-item-cat";
@@ -188,7 +223,7 @@ function renderWhys() {
     btn.appendChild(p);
     btn.addEventListener("click", () => openWhyModal(w.id));
     list.appendChild(btn);
-  }
+  });
 }
 
 function openWhyModal(id = null) {
@@ -433,7 +468,8 @@ function renderHeatmap() {
     const k = dateKey(new Date(y, m, d));
     const v = data.checkins[k];
     const el = document.createElement("div");
-    el.className = "hm-cell";
+    el.className = "hm-cell hm-pop";
+    el.style.animationDelay = d * 12 + "ms";
     if (v === true) { el.classList.add("hm-good"); el.textContent = "✓"; el.title = `${k}: disciplined`; }
     else if (v === false) { el.classList.add("hm-bad"); el.textContent = "×"; el.title = `${k}: slipped`; }
     else { el.textContent = d; el.title = `${k}: no entry`; }
