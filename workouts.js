@@ -1,5 +1,6 @@
 // Workout preset library.
-// type "reps" logs sets × reps × kg; type "time" logs sets × seconds.
+// type "reps" logs sets × reps × kg; type "time" logs sets × seconds;
+// type "count" logs a simple amount; type "climb" logs amount + hardest grade.
 const WORKOUT_PRESETS = [
   {
     id: "fullbody",
@@ -99,6 +100,38 @@ const WORKOUT_PRESETS = [
         how: "Fists up, light bounce on your feet. Throw combinations — jab, cross, hook — with rotation from your hips. Move around like there's an opponent." },
       { name: "Squat Jumps", target: "3×12", type: "reps",
         how: "Squat down to parallel, then explode up into a jump. Land soft with bent knees straight into the next rep." }
+    ]
+  },
+  {
+    id: "boulder",
+    name: "Bouldering",
+    emoji: "🪨",
+    desc: "Short, powerful climbs without a rope. Rest 2–3 minutes between hard attempts — bouldering is quality over quantity.",
+    exercises: [
+      { name: "Warm-up boulders", target: "10–15 min", type: "time",
+        how: "Climb easy problems well below your max. Warm up your fingers, shoulders and hips before pulling hard — skipping this is how climbers get injured." },
+      { name: "Boulders sent", target: "as many as feels good", type: "climb",
+        how: "Problems you topped. Log how many and the hardest grade of the session (e.g. 6A or V3)." },
+      { name: "Flashes", target: "bonus", type: "climb",
+        how: "Problems you topped on the very first try. The cleanest measure of real progress." },
+      { name: "Project attempts", target: "3–8 tries", type: "count",
+        how: "Attempts on a problem at or above your limit. Falling is part of the process — study the moves between tries instead of just pulling harder." }
+    ]
+  },
+  {
+    id: "toprope",
+    name: "Top Rope",
+    emoji: "🧗",
+    desc: "Rope climbing with the anchor above you — perfect for technique and endurance. Always partner-check knot and belay device before every climb.",
+    exercises: [
+      { name: "Warm-up routes", target: "2–3 easy routes", type: "count",
+        how: "Start with routes several grades below your max. Focus on quiet feet and climbing with straight arms." },
+      { name: "Routes climbed", target: "4–8 routes", type: "climb",
+        how: "Routes you topped out. Log how many and the hardest grade of the day (e.g. 5c or 6a+)." },
+      { name: "Endurance laps", target: "2–3 laps", type: "count",
+        how: "Climb an easy route, lower off, and climb it again without resting. Builds forearm endurance faster than anything." },
+      { name: "Technique drill", target: "10 min", type: "time",
+        how: "Pick one focus — silent feet, hips close to the wall, straight arms — and drill it on easy terrain. Technique beats strength." }
     ]
   }
 ];

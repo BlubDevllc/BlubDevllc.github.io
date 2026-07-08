@@ -658,17 +658,24 @@ function openWorkoutModal(pid) {
     how.textContent = ex.how;
     const inputs = document.createElement("div");
     inputs.className = "ex-inputs";
-    const fields = ex.type === "time"
-      ? [["sets", "sets"], ["seconds", "sec"]]
+    const fields =
+      ex.type === "time" ? [["sets", "sets"], ["seconds", "sec"]]
+      : ex.type === "count" ? [["count", "how many"]]
+      : ex.type === "climb" ? [["count", "how many"], ["grade", "max grade"]]
       : [["sets", "sets"], ["reps", "reps"], ["kg", "kg"]];
     for (const [field, ph] of fields) {
       const inp = document.createElement("input");
-      inp.type = "number";
+      if (field === "grade") {
+        inp.type = "text";
+        inp.maxLength = 8;
+      } else {
+        inp.type = "number";
+        inp.min = "0";
+        inp.step = field === "kg" ? "0.5" : "1";
+        inp.inputMode = "decimal";
+      }
       inp.className = "text-input mini-input";
       inp.placeholder = ph;
-      inp.min = "0";
-      inp.step = field === "kg" ? "0.5" : "1";
-      inp.inputMode = "decimal";
       inp.dataset.field = field;
       inputs.appendChild(inp);
     }
@@ -695,9 +702,11 @@ $("btn-workout-save").addEventListener("click", () => {
       if (inp.value.trim()) any = true;
     });
     if (!any) return;
-    const detail = ex.type === "time"
-      ? `${vals.sets || "?"}×${vals.seconds || "?"}s`
-      : `${vals.sets || "?"}×${vals.reps || "?"}` + (vals.kg ? ` @ ${vals.kg}kg` : "");
+    let detail;
+    if (ex.type === "time") detail = `${vals.sets || "?"}×${vals.seconds || "?"}s`;
+    else if (ex.type === "count") detail = `${vals.count || "?"}×`;
+    else if (ex.type === "climb") detail = `${vals.count || "?"} climbed` + (vals.grade ? ` · max ${vals.grade}` : "");
+    else detail = `${vals.sets || "?"}×${vals.reps || "?"}` + (vals.kg ? ` @ ${vals.kg}kg` : "");
     entries.push({ name: ex.name, detail });
   });
   data.sport.workouts.unshift({
