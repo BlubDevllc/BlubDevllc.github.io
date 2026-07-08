@@ -2,7 +2,7 @@
 
 importScripts("quotes.js");
 
-const CACHE = "whyapp-v3";
+const CACHE = "whyapp-v4";
 const ASSETS = [
   "./",
   "./index.html",
@@ -28,9 +28,22 @@ self.addEventListener("activate", (e) => {
   );
 });
 
-// cache-first, refresh in background
+// HTML: network-first so a new version is picked up immediately when online.
+// Other assets: cache-first with background refresh.
 self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
+  if (e.request.mode === "navigate") {
+    e.respondWith(
+      fetch(e.request)
+        .then((res) => {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(e.request, copy));
+          return res;
+        })
+        .catch(() => caches.match(e.request).then((c) => c || caches.match("./index.html")))
+    );
+    return;
+  }
   e.respondWith(
     caches.match(e.request).then((cached) => {
       const fresh = fetch(e.request)

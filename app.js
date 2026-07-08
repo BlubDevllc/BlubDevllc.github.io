@@ -1025,7 +1025,16 @@ function scheduleForegroundReminders() {
 async function initSW() {
   if (!("serviceWorker" in navigator)) return;
   try {
+    // when a new service worker takes over, reload once so HTML/JS/CSS
+    // are never a mix of old and new versions
+    let reloaded = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (reloaded) return;
+      reloaded = true;
+      location.reload();
+    });
     const reg = await navigator.serviceWorker.register("sw.js");
+    reg.update().catch(() => {});
     // best-effort background reminders on Android (Chrome, installed PWA)
     if ("periodicSync" in reg) {
       try {
