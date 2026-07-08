@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0d0d0d">
+  <title>WHY</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <div class="app">
+
+    <!-- ============ HOME ============ -->
+    <section class="view" id="view-home">
+      <header class="home-header">
+        <div>
+          <h1 id="greeting">Hey.</h1>
+          <p class="date-line" id="today-date"></p>
+        </div>
+      </header>
+
+      <div class="streak-hero" id="streak-hero">
+        <div class="streak-flame">🔥</div>
+        <div class="streak-num" id="streak-num">0</div>
+        <div class="streak-label">day streak</div>
+      </div>
+
+      <div class="why-card" id="why-card">
+        <p class="why-card-text" id="why-card-text"></p>
+        <p class="why-card-source" id="why-card-source"></p>
+        <button class="ghost-btn" id="btn-next-why">another one ↻</button>
+      </div>
+
+      <div class="checkin-card" id="checkin-card">
+        <p class="checkin-q">Did you stay disciplined today?</p>
+        <div class="checkin-btns">
+          <button class="btn btn-good" id="btn-checkin-yes">Yes ✓</button>
+          <button class="btn btn-neutral" id="btn-checkin-no">Not really</button>
+        </div>
+      </div>
+      <div class="checkin-done" id="checkin-done" hidden>
+        <p id="checkin-done-text"></p>
+        <button class="ghost-btn" id="btn-checkin-undo">change answer</button>
+      </div>
+    </section>
+
+    <!-- ============ MY WHYS ============ -->
+    <section class="view" id="view-whys" hidden>
+      <header class="view-header">
+        <h2>My Whys</h2>
+        <p class="view-sub">Your reasons. Written by you, for the hard moments.</p>
+      </header>
+      <div id="whys-list" class="whys-list"></div>
+      <div class="empty-state" id="whys-empty" hidden>
+        <p>No whys yet.</p>
+        <p class="empty-sub">Write down why you try. Why you want more for yourself. Future-you will read these when it gets hard.</p>
+      </div>
+      <button class="fab" id="btn-add-why" aria-label="Add a why">＋</button>
+    </section>
+
+    <!-- ============ PROGRESS ============ -->
+    <section class="view" id="view-progress" hidden>
+      <header class="view-header">
+        <h2>Progress</h2>
+        <p class="view-sub">Proof that you're trying.</p>
+      </header>
+
+      <div class="stat-row">
+        <div class="stat-tile">
+          <div class="stat-value" id="stat-streak">0</div>
+          <div class="stat-label">current streak</div>
+        </div>
+        <div class="stat-tile">
+          <div class="stat-value" id="stat-best">0</div>
+          <div class="stat-label">best streak</div>
+        </div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-tile">
+          <div class="stat-value" id="stat-resisted">–</div>
+          <div class="stat-label">urges resisted</div>
+        </div>
+        <div class="stat-tile">
+          <div class="stat-value" id="stat-trigger">–</div>
+          <div class="stat-label">most common urge</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h3 id="heatmap-title"></h3>
+          <div class="month-nav">
+            <button class="icon-btn" id="btn-month-prev" aria-label="Previous month">‹</button>
+            <button class="icon-btn" id="btn-month-next" aria-label="Next month">›</button>
+          </div>
+        </div>
+        <div class="heatmap" id="heatmap"></div>
+        <div class="heatmap-legend">
+          <span class="legend-item"><span class="legend-cell cell-good">✓</span> disciplined</span>
+          <span class="legend-item"><span class="legend-cell cell-bad">×</span> slipped</span>
+          <span class="legend-item"><span class="legend-cell cell-none"></span> no entry</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Recent urges</h3>
+        <div id="urge-log" class="urge-log"></div>
+      </div>
+    </section>
+
+    <!-- ============ SETTINGS ============ -->
+    <section class="view" id="view-settings" hidden>
+      <header class="view-header">
+        <h2>Settings</h2>
+      </header>
+
+      <div class="card">
+        <h3>Your name</h3>
+        <input type="text" id="input-name" class="text-input" placeholder="What should I call you?">
+      </div>
+
+      <div class="card">
+        <h3>Daily reminders</h3>
+        <p class="card-sub">Get a nudge with one of your whys. Buzzes your watch too.</p>
+        <div id="reminder-list" class="reminder-list"></div>
+        <div class="reminder-add">
+          <input type="time" id="input-reminder-time" class="text-input time-input" value="08:00">
+          <button class="btn btn-small" id="btn-add-reminder">Add</button>
+        </div>
+        <button class="btn btn-neutral" id="btn-notif-perm">Enable notifications</button>
+        <p class="hint" id="notif-status"></p>
+        <p class="hint">Heads up: Android can delay web-app notifications when the app is closed. Opening the app once a day keeps them reliable.</p>
+      </div>
+
+      <div class="card">
+        <h3>Backup</h3>
+        <p class="card-sub">Everything is stored only on this device.</p>
+        <div class="checkin-btns">
+          <button class="btn btn-neutral" id="btn-export">Export data</button>
+          <button class="btn btn-neutral" id="btn-import">Import data</button>
+        </div>
+        <input type="file" id="input-import" accept=".json" hidden>
+      </div>
+
+      <div class="card">
+        <h3>If it gets really dark</h3>
+        <p class="card-sub">You matter more than any streak. If you're struggling with thoughts about not wanting to live, talk to someone: <strong>113 Zelfmoordpreventie</strong> — call <a href="tel:0800-0113">0800-0113</a> (free, 24/7) or chat at <a href="https://www.113.nl" target="_blank" rel="noopener">113.nl</a>.</p>
+      </div>
+    </section>
+
+    <!-- ============ SOS OVERLAY ============ -->
+    <div class="sos-overlay" id="sos-overlay" hidden>
+      <button class="sos-close" id="btn-sos-close" aria-label="Close">✕</button>
+
+      <!-- step 1: your whys -->
+      <div class="sos-step" id="sos-step-whys">
+        <p class="sos-kicker">STOP. Before you do it — remember:</p>
+        <div class="sos-why" id="sos-why-text"></div>
+        <div class="sos-dots" id="sos-dots"></div>
+        <button class="btn btn-big" id="btn-sos-next-why">Next</button>
+      </div>
+
+      <!-- step 2: breathing -->
+      <div class="sos-step" id="sos-step-breathe" hidden>
+        <p class="sos-kicker" id="breathe-label">Breathe in…</p>
+        <div class="breathe-wrap">
+          <div class="breathe-circle" id="breathe-circle"></div>
+        </div>
+        <p class="sos-timer" id="breathe-timer">60</p>
+        <p class="sos-sub">The urge is a wave. Ride it out. It always passes.</p>
+        <button class="ghost-btn" id="btn-skip-breathe">skip</button>
+      </div>
+
+      <!-- step 3: log it -->
+      <div class="sos-step" id="sos-step-log" hidden>
+        <p class="sos-kicker">You made it through. What was the urge?</p>
+        <div class="chip-row" id="trigger-chips">
+          <button class="chip" data-trigger="Doomscrolling">Doomscrolling</button>
+          <button class="chip" data-trigger="Procrastinating">Procrastinating</button>
+          <button class="chip" data-trigger="Junk food">Junk food</button>
+          <button class="chip" data-trigger="Gaming too long">Gaming too long</button>
+          <button class="chip" data-trigger="Other">Other</button>
+        </div>
+        <input type="text" id="input-trigger-custom" class="text-input" placeholder="What was it?" hidden>
+        <p class="sos-kicker" style="margin-top:24px">And how did it go?</p>
+        <div class="checkin-btns">
+          <button class="btn btn-good btn-big" id="btn-urge-resisted">I resisted 💪</button>
+          <button class="btn btn-neutral btn-big" id="btn-urge-gavein">I gave in</button>
+        </div>
+        <p class="sos-sub">No shame either way. Logging it is how you beat it.</p>
+      </div>
+
+      <!-- step 4: after logging -->
+      <div class="sos-step" id="sos-step-done" hidden>
+        <div class="sos-done-emoji" id="sos-done-emoji">💪</div>
+        <p class="sos-why" id="sos-done-text"></p>
+        <button class="btn btn-big" id="btn-sos-finish">Back to it</button>
+      </div>
+    </div>
+
+    <!-- ============ WHY EDITOR MODAL ============ -->
+    <div class="modal-backdrop" id="why-modal" hidden>
+      <div class="modal">
+        <h3 id="why-modal-title">New why</h3>
+        <textarea id="input-why-text" class="text-input" rows="4" placeholder="Why do you keep going? What are you building toward? Who are you doing it for?"></textarea>
+        <div class="chip-row" id="why-category-chips">
+          <button class="chip" data-cat="why I live">why I live</button>
+          <button class="chip" data-cat="why I try">why I try</button>
+          <button class="chip" data-cat="goal">goal</button>
+          <button class="chip" data-cat="aspiration">aspiration</button>
+        </div>
+        <div class="checkin-btns modal-actions">
+          <button class="btn btn-neutral" id="btn-why-cancel">Cancel</button>
+          <button class="btn btn-good" id="btn-why-save">Save</button>
+        </div>
+        <button class="ghost-btn danger" id="btn-why-delete" hidden>delete this why</button>
+      </div>
+    </div>
+
+    <!-- ============ TAB BAR ============ -->
+    <nav class="tabbar">
+      <button class="tab active" data-view="home"><span class="tab-icon">🏠</span><span>Home</span></button>
+      <button class="tab" data-view="whys"><span class="tab-icon">❤️</span><span>Whys</span></button>
+      <button class="tab tab-sos" id="btn-sos" aria-label="SOS"><span>SOS</span></button>
+      <button class="tab" data-view="progress"><span class="tab-icon">📈</span><span>Progress</span></button>
+      <button class="tab" data-view="settings"><span class="tab-icon">⚙️</span><span>Settings</span></button>
+    </nav>
+
+  </div>
+
+  <div class="toast" id="toast" hidden></div>
+
+  <script src="quotes.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
